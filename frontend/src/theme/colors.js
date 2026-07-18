@@ -1,0 +1,41 @@
+export const BRAND = {
+  blue: "#034ca1",
+  blueDark: "#023168",
+  blueLight: "#1e6fd9",
+  blueMuted: "#3D6DB5",
+  gold: "#d99f18",
+  goldLight: "#e5b954",
+  cream: "#FFF9F0",
+  textMuted: "rgba(255,255,255,.72)",
+};
+
+export const C = {
+  white: "#FFFFFF",
+  pageBg: "#F8F8FC",
+  bg: "#F8F8FC",
+  topBar: "rgba(255,255,255,.98)",
+  filtersBar: "#FAFBFD",
+  card: "#ffffff",
+  panel: "#ffffff",
+  border: "#EAEAF2",
+  borderFaint: "#F2F2F8",
+  inputBg: "#F4F4FA",
+  inputBorder: "#EAEAF2",
+  rowHover: "rgba(3,76,161,0.04)",
+  text: "#0F0F1A",
+  textSub: "#525270",
+  textMuted: "#8888A8",
+  textGhost: "#C0C0D0",
+  textLight: "#C0C0D0",
+  blue: BRAND.blue,
+  blueLight: "rgba(3,76,161,0.09)",
+  blueBg: "rgba(3,76,161,0.08)",
+  blueBdr: "rgba(3,76,161,0.18)",
+  blueRing: "rgba(42,91,168,0.14)",
+  gold: BRAND.gold,
+  goldBg: "rgba(217,159,24,0.08)",
+  goldBdr: "rgba(217,159,24,0.2)",
+  font: "'Sora', sans-serif",
+};
+
+export default C;

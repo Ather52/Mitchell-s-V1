@@ -1,0 +1,58 @@
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+
+# =========================
+# Virtual Environments
+# =========================
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Node / React / Vite
+# =========================
+node_modules/
+.vite/
+dist/
+build/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Generated Files
+# =========================
+.greeting_cache/
+voice_samples/*.wav
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+backend/.enves

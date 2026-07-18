@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/images/mitchell's.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mitchell's Sales Portal — Your Company Never Misses a Call Again</title>
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+
+      /* Solid overlay that hides the page until React removes it.
+         This covers the window from first HTML parse until App mounts,
+         ensuring JSX <style> blocks are fully applied before anything is visible. */
+      #app-loader {
+        position: fixed;
+        inset: 0;
+        background: #fff;
+        z-index: 999999;
+        opacity: 1;
+        transition: opacity 0.18s ease;
+        pointer-events: none;
+      }
+      #app-loader.vx-hide { opacity: 0; }
+    </style>
+
+    <!-- Safety-net: remove loader after 2 s if React never mounts (network failure etc.) -->
+    <script>
+      setTimeout(function () {
+        var l = document.getElementById('app-loader');
+        if (l) { l.classList.add('vx-hide'); setTimeout(function () { l.remove(); }, 220); }
+      }, 2000);
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      display=optional: browsers use Sora if it is available within a tiny
+      initial window (virtually instant from cache); otherwise the fallback
+      font is used for the rest of the page load with NO later swap.
+      This eliminates the reflow/repaint that display=swap causes.
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400;1,600&display=optional" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Removed by App.tsx useLayoutEffect after React renders all components and
+         the browser has processed every JSX <style> block. -->
+    <div id="app-loader"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
