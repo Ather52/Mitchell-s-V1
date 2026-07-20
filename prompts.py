@@ -517,7 +517,7 @@ caller.
 
 
 DEFAULT_OUTBOUND_VARS = {
-    "owner_name": "there",
+    "owner_name": "the shop owner",
     "shop_name": "your shop",
     "customer_phone": "",
     "customer_city": "",

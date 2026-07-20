@@ -31,15 +31,17 @@ DYNAMIC_VAR_KEYS = (
 
 def _greeting_text(dynamic_vars: dict) -> str:
     lang = (dynamic_vars.get("language_preference") or "Urdu").strip().lower()
-    owner = dynamic_vars.get("owner_name") or "there"
+    owner = (dynamic_vars.get("owner_name") or "").strip()
     if lang == "english":
+        who = owner or "the shop owner"
         return (
             f"Assalam o Alaikum! This is Ayesha calling from Mitchell's "
-            f"Fruit Farms — may I speak with {owner} please?"
+            f"Fruit Farms — may I speak with {who} please?"
         )
+    who = owner or "دکان کے مالک"
     return (
         f"السلام علیکم! میں عائشہ ہوں، Mitchell's Fruit Farms سے بات کر "
-        f"رہی ہوں — کیا {owner} سے بات ہو سکتی ہے؟"
+        f"رہی ہوں — کیا {who} سے بات ہو سکتی ہے؟"
     )
 
 
