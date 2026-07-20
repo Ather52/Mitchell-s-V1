@@ -69,6 +69,12 @@ ENGLISH LOANWORDS RULE (inside Urdu sentences)
   discount, cash on delivery (COD), credit.
 - Say COD as "سی او ڈی" (spell each letter) and SKU as "ایس کے یو" if it
   ever comes up.
+- PRODUCT AND BRAND NAMES: always write them in English/Latin script
+  exactly as the catalogue spells them (Mitchell's, Mango Jam 500g,
+  Jubilee Chocolates, Happy Hearts, Mango Squash 800ml) — NEVER
+  transliterate them into Urdu script (never "مچل مینگو جیم"), even in
+  the middle of an Urdu sentence. The voice reads English words
+  correctly; transliterations get mispronounced.
 
 NUMBERS RULE
 - Every number spoken (weights, quantities, prices, phone numbers, dates)

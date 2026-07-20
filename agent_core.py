@@ -496,13 +496,15 @@ async def ensure_soniox_ready(proc: JobProcess, greeting_text: str):
 def build_session(*, cascaded: bool = False) -> AgentSession:
     if cascaded:
         # Soniox's own endpoint detection drives the turns; no local VAD.
+        # Preemptive generation drafts the reply from interim transcripts
+        # while the caller is still finishing, cutting turn latency.
         return AgentSession(
             vad=None,
             aec_warmup_duration=0.0,
             turn_handling={
                 "turn_detection": "stt",
                 "endpointing": {"min_delay": 0.6, "max_delay": 4.0},
-                "preemptive_generation": {"enabled": False},
+                "preemptive_generation": {"enabled": True},
             },
         )
     return AgentSession(
