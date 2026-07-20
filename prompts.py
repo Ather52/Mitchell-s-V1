@@ -527,6 +527,28 @@ caller.
 """.strip()
 
 
+PRODUCT_NAME_FIXES = [
+    ("مچلز فروٹ فارمز", "Mitchell's Fruit Farms"),
+    ("مچل فروٹ فارمز", "Mitchell's Fruit Farms"),
+    ("مچلز", "Mitchell's"),
+    ("مچل", "Mitchell's"),
+    ("مینگو جیم", "Mango Jam"),
+    ("مینگو اسکواش", "Mango Squash"),
+    ("مینگو سکواش", "Mango Squash"),
+    ("جوبلی چاکلیٹس", "Jubilee Chocolates"),
+    ("جوبلی چاکلیٹ", "Jubilee Chocolate"),
+    ("جوبلی", "Jubilee"),
+    ("ہیپی ہارٹس", "Happy Hearts"),
+    ("اسٹرابیری جیم", "Strawberry Jam"),
+    ("سٹرابیری جیم", "Strawberry Jam"),
+    ("مکسڈ فروٹ جیم", "Mixed Fruit Jam"),
+    ("گولڈن ایپل", "Golden Apple"),
+    ("ٹماٹو کیچپ", "Tomato Ketchup"),
+    ("چلی گارلک ساس", "Chilli Garlic Sauce"),
+    ("پینٹ بٹر", "Peanut Butter"),
+    ("پی نٹ بٹر", "Peanut Butter"),
+]
+
 STT_CONTEXT_TERMS = [
     "Mitchell's", "Mitchell's Fruit Farms", "Ayesha",
     "Jubilee Chocolates", "Happy Hearts", "Jaam-e-Hayat",

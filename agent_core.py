@@ -212,6 +212,34 @@ class MitchellsAssistant(Agent):
                 tools=tools,
             )
 
+    def tts_node(self, text, model_settings):
+        # The LLM tends to echo the STT's Urdu transliterations of product
+        # names ("مینگو جیم") no matter what the prompt says; the ur voice
+        # then mispronounces them. Rewrite known names to English right
+        # before synthesis. A 60-char tail is held back so a multi-word
+        # name never straddles an emit boundary.
+        from prompts import PRODUCT_NAME_FIXES
+
+        def _fix(chunk: str) -> str:
+            for ur, en in PRODUCT_NAME_FIXES:
+                if ur in chunk:
+                    chunk = chunk.replace(ur, en)
+            return chunk
+
+        async def _fixed():
+            buf = ""
+            async for chunk in text:
+                buf += chunk
+                if len(buf) > 60:
+                    cut = buf.rfind(" ", 0, len(buf) - 60)
+                    if cut > 0:
+                        out, buf = buf[:cut], buf[cut:]
+                        yield _fix(out)
+            if buf:
+                yield _fix(buf)
+
+        return Agent.default.tts_node(self, _fixed(), model_settings)
+
     def _sip_participant(self, room: rtc.Room) -> rtc.RemoteParticipant | None:
         return next(
             (
