@@ -568,7 +568,7 @@ STT_CONTEXT_TERMS = [
 
 DEFAULT_OUTBOUND_VARS = {
     "owner_name": "the shop owner",
-    "shop_name": "your shop",
+    "shop_name": "آپ کی دکان",
     "customer_phone": "",
     "customer_city": "",
     "customer_type": "new",
