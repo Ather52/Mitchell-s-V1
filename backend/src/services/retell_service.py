@@ -6,10 +6,32 @@
 import os
 import hashlib
 import hmac
+import time
 
 # pyrefly: ignore [missing-import]
 import httpx
 from src.utils.db import Caller
+
+# Short TTL cache for the Retell reads the dashboard hammers on every page
+# load (get-agent, list-voices). These calls cost 200-900ms each against
+# the Retell API and their data changes only when settings are updated.
+_CACHE_TTL_S = 45
+_cache: dict = {}
+
+
+def _cache_get(key: str):
+    entry = _cache.get(key)
+    if entry and time.monotonic() - entry[0] < _CACHE_TTL_S:
+        return entry[1]
+    return None
+
+
+def _cache_set(key: str, value) -> None:
+    _cache[key] = (time.monotonic(), value)
+
+
+def _cache_clear() -> None:
+    _cache.clear()
 
 # Webhook secret to verify incoming event payloads from Retell AI
 RETELL_WEBHOOK_SECRET = os.getenv("RETELL_WEBHOOK_SECRET", "")
@@ -119,13 +141,18 @@ async def get_agent() -> dict:
     Queries Retell details for our configured Voice Agent ID.
     """
     agent_id = os.getenv("RETELL_AGENT_ID", "")
+    cached = _cache_get(f"agent:{agent_id}")
+    if cached is not None:
+        return cached
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{BASE_URL}/get-agent/{agent_id}",
             headers=_headers(),
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+    _cache_set(f"agent:{agent_id}", data)
+    return data
 
 
 async def get_conversation_flow(override_flow_id: str = None) -> dict:
@@ -206,6 +233,7 @@ async def update_agent_voice_settings(override_agent_id: str = None, **kwargs) -
             json=payload,
         )
         response.raise_for_status()
+        _cache_clear()
         return response.json()
 
 
@@ -213,13 +241,18 @@ async def list_voices() -> list[dict]:
     """
     Retrieves available voices (from ElevenLabs, PlayHT, etc.) supported by Retell AI.
     """
+    cached = _cache_get("voices")
+    if cached is not None:
+        return cached
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{BASE_URL}/list-voices",
             headers=_headers(),
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+    _cache_set("voices", data)
+    return data
 
 
 async def list_knowledge_bases() -> dict:

@@ -86,18 +86,38 @@ const cancelOrderApi = async (orderId) => {
   const res = await axiosInstance.patch(`/retell/orders/${orderId}`, { status: "cancelled" });
   return res.data;
 };
-const getSettingsApi = async () => {
-  const res = await axiosInstance.get("/settings");
-  return res.data;
+// Short-lived cache + in-flight dedup for GETs that several components
+// request at once on page load (sidebar + page both fetch settings; the
+// voices endpoint hits the Retell API server-side).
+const _getCache = new Map();
+const GET_CACHE_TTL_MS = 30000;
+const cachedGet = (path) => {
+  const hit = _getCache.get(path);
+  if (hit) {
+    if (hit.promise) return hit.promise;
+    if (Date.now() - hit.at < GET_CACHE_TTL_MS) return Promise.resolve(hit.data);
+  }
+  const promise = axiosInstance
+    .get(path)
+    .then((res) => {
+      _getCache.set(path, { at: Date.now(), data: res.data });
+      return res.data;
+    })
+    .catch((err) => {
+      _getCache.delete(path);
+      throw err;
+    });
+  _getCache.set(path, { promise });
+  return promise;
 };
+
+const getSettingsApi = () => cachedGet("/settings");
 const updateSettingsApi = async (data) => {
   const res = await axiosInstance.patch("/settings", data);
+  _getCache.delete("/settings");
   return res.data;
 };
-const getVoicesApi = async () => {
-  const res = await axiosInstance.get("/settings/voices");
-  return res.data;
-};
+const getVoicesApi = () => cachedGet("/settings/voices");
 const getDashboardStatsApi = async () => {
   const res = await axiosInstance.get("/retell/stats");
   return res.data;
