@@ -41,11 +41,19 @@ function formatDuration(ms) {
   const sec = s % 60;
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 }
-function formatTimestamp(ts) {
-  let val = Number(ts) || Date.now();
+function callEpochMs(call) {
+  let val = Number(call?.start_timestamp);
   if (val && val < 1000000000000) {
     val = val * 1000;
   }
+  if (!val && call?.created_at) {
+    val = new Date(call.created_at).getTime();
+  }
+  return val || 0;
+}
+function formatTimestamp(call) {
+  const val = callEpochMs(call);
+  if (!val) return { time: "—", date: "—" };
   const d = new Date(val);
   return {
     time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
@@ -493,7 +501,7 @@ function DetailPanel({
   const sentiment = getSentiment(call);
   const outcome = getOutcome(call);
   const revenue = getOrderRevenue(call);
-  const { time, date } = formatTimestamp(call.start_timestamp);
+  const { time, date } = formatTimestamp(call);
   const extractedItems = useMemo(() => {
     const summaryText = ((typeof call.order_items === "string" ? call.order_items : "") + " " + (call.call_summary || "") + " " + (call.transcript || "")).toLowerCase();
     const detected = [];
@@ -1978,8 +1986,8 @@ function CallsOrders() {
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
     if (sortField === "timestamp") {
-      let aTime = Number(a.start_timestamp) || Date.now();
-      let bTime = Number(b.start_timestamp) || Date.now();
+      let aTime = callEpochMs(a);
+      let bTime = callEpochMs(b);
       cmp = aTime - bTime;
     }
     if (sortField === "duration") cmp = (a.duration_ms ?? 0) - (b.duration_ms ?? 0);
@@ -2403,7 +2411,7 @@ function CallsOrders() {
                   </p>
                 </div> : paged.map((call) => {
     const name = getDisplayName(call);
-    const { time, date } = formatTimestamp(call.start_timestamp);
+    const { time, date } = formatTimestamp(call);
     const outcome = getOutcome(call);
     const sentiment = getSentiment(call);
     const revenue = getOrderRevenue(call);
