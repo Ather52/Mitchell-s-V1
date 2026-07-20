@@ -102,10 +102,18 @@ DASHSCOPE_HTTP_BASE_URL = _env(
 def build_stt():
     if not (USE_SONIOX_STT and SONIOX_API_KEY and soniox is not None):
         return None
+    hints = [
+        h.strip()
+        for h in _env("SONIOX_STT_LANGUAGE_HINTS", "ur,en").split(",")
+        if h.strip()
+    ]
     return soniox.STT(
         api_key=SONIOX_API_KEY,
         params=soniox.STTOptions(
-            language_hints=["ur", "en"],
+            language_hints=hints,
+            language_hints_strict=(
+                _env("SONIOX_STT_HINTS_STRICT", "0") == "1"
+            ),
             max_endpoint_delay_ms=int(
                 _env("SONIOX_STT_ENDPOINT_DELAY_MS", "1500")
             ),
