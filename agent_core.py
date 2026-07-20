@@ -126,8 +126,10 @@ class MitchellsAssistant(Agent):
         self._greeting_text = greeting_text
         self._greeting_frames = greeting_frames or []
         self._inbound = inbound
-        if tts is None:
-            tts = build_tts()
+        # tts is the caller's decision: None means Qwen speaks natively,
+        # either because no Soniox key is set or because the Soniox probe
+        # failed and this call is running on the fallback voice.
+        self._has_tts = tts is not None
         super().__init__(
             instructions=instructions,
             tts=tts,
@@ -247,6 +249,17 @@ class MitchellsAssistant(Agent):
         if GREETING_DELAY_S > 0:
             await asyncio.sleep(GREETING_DELAY_S)
         self.session.clear_user_turn()
+        if not self._has_tts:
+            # Native mode cannot session.say (supports_say=False): ask the
+            # model to speak the greeting itself.
+            logger.warning("no TTS, greeting via Qwen native voice")
+            self.session.generate_reply(
+                instructions=(
+                    "Say exactly this greeting, nothing else: "
+                    f"{self._greeting_text}"
+                )
+            )
+            return
         if self._greeting_frames:
 
             async def _cached_audio():
@@ -365,31 +378,42 @@ def prewarm_soniox(proc: JobProcess) -> None:
 
 
 async def ensure_soniox_ready(proc: JobProcess, greeting_text: str):
-    cache_key = _greeting_cache_key(greeting_text)
-    cached = proc.userdata.get(cache_key) or _GREETING_FRAME_CACHE.get(
-        cache_key
-    )
-    if cached:
-        return proc.userdata.get("tts"), cached
+    """Prewarm Soniox and verify it can actually synthesize.
 
+    Returns (tts, greeting_frames). tts is None when Soniox is unavailable
+    (no key, or the probe failed) — the caller then runs the call on Qwen's
+    native voice instead of dying silent mid-call.
+    """
     tts = proc.userdata.get("tts") or build_tts()
     if tts is None:
         return None, []
 
-    stream = tts.synthesize(greeting_text)
+    cache_key = _greeting_cache_key(greeting_text)
+    cached = proc.userdata.get(cache_key) or _GREETING_FRAME_CACHE.get(
+        cache_key
+    )
+    # Even with a cached greeting, synthesize a short probe: a dead Soniox
+    # account otherwise only surfaces after the greeting, killing the call.
+    text = "سلام" if cached else greeting_text
+    stream = tts.synthesize(text)
     frames: list[rtc.AudioFrame] = []
     try:
         async for chunk in stream:
             frames.append(chunk.frame)
         proc.userdata["tts"] = tts
+        if cached:
+            return tts, cached
         _store_greeting_frames(proc, greeting_text, frames)
         logger.info(
             "prewarmed Soniox TTS (%d greeting frames)", len(frames)
         )
         return tts, frames
     except Exception as exc:
-        logger.warning("Soniox prewarm failed: %s", exc)
-        return build_tts(), []
+        logger.warning(
+            "Soniox probe failed, falling back to Qwen native voice: %s",
+            exc,
+        )
+        return None, []
     finally:
         await stream.aclose()
 
@@ -504,24 +528,35 @@ async def run_agent(
         participant.attributes.get(SIP_CALL_STATUS_ATTR),
     )
 
+    # Probe Soniox while the phone is still ringing so the result is ready
+    # by the time the callee answers.
+    soniox_task = asyncio.create_task(
+        ensure_soniox_ready(ctx.proc, greeting_text),
+        name="soniox_cache",
+    )
+
     if not await _wait_for_sip_answer(
         ctx, participant, log_label, inbound=(log_label == "inbound")
     ):
         logger.info("[%s] caller gone before answer, exiting", log_label)
+        soniox_task.cancel()
         return
 
-    if not greeting_frames:
-        asyncio.create_task(
-            ensure_soniox_ready(ctx.proc, greeting_text),
-            name="soniox_cache",
+    try:
+        prewarmed_tts, warm_frames = await asyncio.wait_for(
+            asyncio.shield(soniox_task), timeout=10
         )
+    except Exception:
+        # Probe inconclusive: keep the old behavior and assume Soniox works.
+        prewarmed_tts, warm_frames = build_tts(), []
+    if not greeting_frames:
+        greeting_frames = warm_frames
 
     logger.info(
         "[%s] greeting ready: %d frames", log_label, len(greeting_frames)
     )
 
     session = build_session()
-    prewarmed_tts = ctx.proc.userdata.get("tts")
     is_inbound = log_label == "inbound"
 
     logger.info("[%s] starting voice assistant", log_label)
