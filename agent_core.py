@@ -91,6 +91,41 @@ def build_tts():
     )
 
 
+USE_SONIOX_STT = _env("MITCHELLS_USE_SONIOX_STT", "0") == "1"
+QWEN_TEXT_MODEL = _env("QWEN_TEXT_MODEL", "qwen-plus")
+DASHSCOPE_HTTP_BASE_URL = _env(
+    "DASHSCOPE_HTTP_BASE_URL",
+    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+)
+
+
+def build_stt():
+    if not (USE_SONIOX_STT and SONIOX_API_KEY and soniox is not None):
+        return None
+    return soniox.STT(
+        api_key=SONIOX_API_KEY,
+        params=soniox.STTOptions(
+            language_hints=["ur", "en"],
+            max_endpoint_delay_ms=int(
+                _env("SONIOX_STT_ENDPOINT_DELAY_MS", "1500")
+            ),
+        ),
+    )
+
+
+def build_text_llm():
+    from livekit.plugins import openai as openai_plugin
+
+    logger.info(
+        "cascaded pipeline: Soniox STT -> %s -> Soniox TTS", QWEN_TEXT_MODEL
+    )
+    return openai_plugin.LLM(
+        model=QWEN_TEXT_MODEL,
+        api_key=DASHSCOPE_API_KEY,
+        base_url=DASHSCOPE_HTTP_BASE_URL,
+    )
+
+
 def build_llm(instructions: str, *, use_soniox: bool) -> QwenOmniRealtimeModel:
     if use_soniox:
         logger.info(
@@ -122,6 +157,7 @@ class MitchellsAssistant(Agent):
         greeting_frames: list[rtc.AudioFrame] | None = None,
         inbound: bool = True,
         tts=None,
+        stt=None,
     ) -> None:
         self._greeting_text = greeting_text
         self._greeting_frames = greeting_frames or []
@@ -130,12 +166,21 @@ class MitchellsAssistant(Agent):
         # either because no Soniox key is set or because the Soniox probe
         # failed and this call is running on the fallback voice.
         self._has_tts = tts is not None
-        super().__init__(
-            instructions=instructions,
-            tts=tts,
-            llm=build_llm(instructions, use_soniox=tts is not None),
-            tools=tools,
-        )
+        if stt is not None:
+            super().__init__(
+                instructions=instructions,
+                stt=stt,
+                tts=tts,
+                llm=build_text_llm(),
+                tools=tools,
+            )
+        else:
+            super().__init__(
+                instructions=instructions,
+                tts=tts,
+                llm=build_llm(instructions, use_soniox=tts is not None),
+                tools=tools,
+            )
 
     def _sip_participant(self, room: rtc.Room) -> rtc.RemoteParticipant | None:
         return next(
@@ -418,7 +463,18 @@ async def ensure_soniox_ready(proc: JobProcess, greeting_text: str):
         await stream.aclose()
 
 
-def build_session() -> AgentSession:
+def build_session(*, cascaded: bool = False) -> AgentSession:
+    if cascaded:
+        # Soniox's own endpoint detection drives the turns; no local VAD.
+        return AgentSession(
+            vad=None,
+            aec_warmup_duration=0.0,
+            turn_handling={
+                "turn_detection": "stt",
+                "endpointing": {"min_delay": 0.6, "max_delay": 4.0},
+                "preemptive_generation": {"enabled": False},
+            },
+        )
     return AgentSession(
         vad=None,
         aec_warmup_duration=0.0,
@@ -556,8 +612,17 @@ async def run_agent(
         "[%s] greeting ready: %d frames", log_label, len(greeting_frames)
     )
 
-    session = build_session()
+    stt = build_stt() if prewarmed_tts is not None else None
+    session = build_session(cascaded=stt is not None)
     is_inbound = log_label == "inbound"
+
+    @session.on("conversation_item_added")
+    def _log_item(ev):
+        logger.info(
+            "%s: %r",
+            getattr(ev.item, "role", "?"),
+            getattr(ev.item, "text_content", ""),
+        )
 
     logger.info("[%s] starting voice assistant", log_label)
     await session.start(
@@ -569,6 +634,7 @@ async def run_agent(
             greeting_frames=greeting_frames,
             inbound=is_inbound,
             tts=prewarmed_tts,
+            stt=stt,
         ),
         room_input_options=build_room_input_options(),
     )

@@ -2,6 +2,7 @@
 livekit-agents>=1.6.4,<2.0
 livekit-plugins-noise-cancellation>=0.2.0,<1.0.0
 livekit-plugins-soniox>=1.6.4,<2.0
+livekit-plugins-openai>=1.6.4,<2.0
 
 # Qwen / DashScope (LLM + STT realtime)
 dashscope~=1.25
