@@ -518,6 +518,7 @@ class QwenOmniRealtimeSession(llm.RealtimeSession):
         elif event_type == "conversation.item.input_audio_transcription.completed":
             transcript = data.get("transcript", "")
             item_id = data.get("item_id", utils.shortuuid())
+            logger.info("USER transcript: %r", transcript)
             if transcript:
                 self.emit(
                     "input_audio_transcription_completed",
@@ -542,6 +543,10 @@ class QwenOmniRealtimeSession(llm.RealtimeSession):
             "response.audio_transcript.done",
             "response.text.done",
         ):
+            logger.info(
+                "AGENT text: %r",
+                data.get("transcript") or data.get("text") or "",
+            )
             self._close_text(data)
         elif event_type == "response.audio.done":
             self._close_audio(data)
