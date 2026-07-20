@@ -516,6 +516,22 @@ caller.
 """.strip()
 
 
+STT_CONTEXT_TERMS = [
+    "Mitchell's", "Mitchell's Fruit Farms", "Ayesha",
+    "Jubilee Chocolates", "Happy Hearts", "Jaam-e-Hayat",
+    "Golden Mist", "Olde English", "Rose's Lime", "Golden Apple",
+    "Eclairs", "Butterscotch", "Fruit Bon Bon", "Milk Toffees",
+    "Peri Peri", "Chipotle", "Habanero", "Jalapeno", "Imlee",
+    "Chaat", "Hari", "Hyderabadi", "Chicken Karahi", "Daal Makhani",
+    "Chana Masala", "Biryani Masala", "mango jam", "mixed fruit",
+    "strawberry", "apricot", "black currant", "marmalade", "squash",
+    "ketchup", "chutney", "pickle", "vinegar", "peanut butter",
+    "carton", "cash on delivery", "COD", "credit", "discount",
+    "order", "delivery", "rate", "PKR", "rupees", "retailer",
+    "distributor", "wholesaler", "supermarket", "shop", "gram",
+    "bottle", "pouch", "sachet", "polybag",
+]
+
 DEFAULT_OUTBOUND_VARS = {
     "owner_name": "the shop owner",
     "shop_name": "your shop",

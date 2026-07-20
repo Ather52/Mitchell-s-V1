@@ -102,6 +102,8 @@ DASHSCOPE_HTTP_BASE_URL = _env(
 def build_stt():
     if not (USE_SONIOX_STT and SONIOX_API_KEY and soniox is not None):
         return None
+    from prompts import STT_CONTEXT_TERMS
+
     hints = [
         h.strip()
         for h in _env("SONIOX_STT_LANGUAGE_HINTS", "ur,en").split(",")
@@ -116,6 +118,26 @@ def build_stt():
             ),
             max_endpoint_delay_ms=int(
                 _env("SONIOX_STT_ENDPOINT_DELAY_MS", "1500")
+            ),
+            endpoint_sensitivity=float(
+                _env("SONIOX_STT_ENDPOINT_SENSITIVITY", "0.3")
+            ),
+            context=soniox.ContextObject(
+                general=[
+                    soniox.ContextGeneralItem(
+                        key="domain",
+                        value="FMCG food product sales call in Pakistan",
+                    ),
+                    soniox.ContextGeneralItem(
+                        key="setting",
+                        value=(
+                            "Ayesha, a sales agent for Mitchell's Fruit "
+                            "Farms, talks to a Pakistani shopkeeper in "
+                            "Urdu mixed with English commerce terms"
+                        ),
+                    ),
+                ],
+                terms=STT_CONTEXT_TERMS,
             ),
         ),
     )
