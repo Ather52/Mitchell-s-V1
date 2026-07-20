@@ -128,9 +128,12 @@ async def place_outbound_call(
 # The webhook handler stays active and is more precise; both paths only
 # fill fields that are still unset, so whichever runs first wins safely.
 
-# room_name -> {"seen_sip": bool}; observed-state cache so a tick stays
-# cheap. Durable state lives in call_logs, so a restart just re-observes.
-_tracked: dict[str, dict] = {}
+# True when the previous tick saw live call rooms; used to keep sweeping
+# the DB for a few ticks after calls end without paying a Neon connection
+# on every idle tick. All call state itself lives in call_logs
+# (start_timestamp set = SIP participant was observed), so restarts lose
+# nothing.
+_recently_live = False
 
 
 def _is_call_room(name: str) -> bool:
@@ -222,10 +225,8 @@ async def _observe_live_room(db, lk, room_name: str, now_ms: int) -> None:
         ListParticipantsRequest(room=room_name)
     )
     sip = _sip_participant(parts.participants)
-    state = _tracked.setdefault(room_name, {"seen_sip": False})
     log = await _get_or_create_log(db, room_name)
     if sip is not None:
-        state["seen_sip"] = True
         attrs = sip.attributes or {}
         if not log.start_timestamp and sip.joined_at:
             log.start_timestamp = sip.joined_at * 1000
@@ -254,9 +255,10 @@ async def _observe_live_room(db, lk, room_name: str, now_ms: int) -> None:
             log.call_status = "ongoing"
             await _sync_outbound_row(db, log)
             _logger.info("poller: %s answered", room_name)
-    elif state["seen_sip"] and not log.end_timestamp:
-        # Caller left; the room itself lingers for departure_timeout, so
-        # this is the accurate hangup signal, not room deletion.
+    elif log.start_timestamp and not log.end_timestamp:
+        # start_timestamp set means the SIP participant was observed at
+        # some point; it being gone from a still-live room is the accurate
+        # hangup signal (the room lingers for departure_timeout).
         _finalize_log(log, now_ms)
         await _sync_outbound_row(db, log)
         _logger.info(
@@ -300,6 +302,36 @@ async def _resolve_stale_outbound(db, live: set, now_ms: int) -> None:
         )
 
 
+async def _sweep_vanished_rooms(db, live: set, now_ms: int) -> None:
+    """Finalize call_logs rows that still look live but whose room no
+    longer exists. DB-driven, so calls that ended while the backend was
+    down or restarting still get their end time and duration."""
+    from sqlalchemy import select
+
+    from src.utils.db import CallLog
+
+    result = await db.execute(
+        select(CallLog).where(
+            CallLog.end_timestamp.is_(None),
+            CallLog.call_status.in_(("ongoing", "dialing", "registered")),
+        )
+    )
+    for log in result.scalars().all():
+        room_name = log.call_id or ""
+        if not _is_call_room(room_name) or room_name in live:
+            continue
+        if _age_seconds(log.created_at) < 45:
+            continue
+        _finalize_log(log, now_ms)
+        await _sync_outbound_row(db, log)
+        _logger.info(
+            "poller: %s room gone, resolved -> %s (%sms)",
+            room_name,
+            log.call_status,
+            log.duration_ms,
+        )
+
+
 _tick = 0
 STALE_CHECK_EVERY_TICKS = 12
 
@@ -309,7 +341,7 @@ async def _poll_call_statuses() -> None:
 
     from src.utils.db import AsyncSessionLocal
 
-    global _tick
+    global _tick, _recently_live
     _tick += 1
     stale_check = _tick % STALE_CHECK_EVERY_TICKS == 0
     lk = LiveKitAPI()
@@ -318,28 +350,21 @@ async def _poll_call_statuses() -> None:
         live = {r.name for r in rooms.rooms if _is_call_room(r.name)}
         now_ms = int(time.time() * 1000)
         # NullPool means every session is a fresh Neon TLS connection;
-        # skip the DB entirely on idle ticks.
-        if not live and not _tracked and not stale_check:
+        # skip the DB entirely on idle ticks. _recently_live keeps the
+        # sweep running for the tick right after the last room vanished.
+        if not live and not _recently_live and not stale_check:
             return
         async with AsyncSessionLocal() as db:
             for room_name in live:
-                await _observe_live_room(db, lk, room_name, now_ms)
-            for room_name in list(_tracked):
-                if room_name in live:
-                    continue
-                log = await _get_or_create_log(db, room_name)
-                if not log.end_timestamp:
-                    _finalize_log(log, now_ms)
-                    await _sync_outbound_row(db, log)
-                    _logger.info(
-                        "poller: %s room closed (%sms)",
-                        room_name,
-                        log.duration_ms,
-                    )
-                del _tracked[room_name]
+                try:
+                    await _observe_live_room(db, lk, room_name, now_ms)
+                except Exception:
+                    _logger.exception("poller: observe failed %s", room_name)
+            await _sweep_vanished_rooms(db, live, now_ms)
             if stale_check:
                 await _resolve_stale_outbound(db, live, now_ms)
             await db.commit()
+        _recently_live = bool(live)
     finally:
         await lk.aclose()
 
