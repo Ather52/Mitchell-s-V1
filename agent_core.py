@@ -531,7 +531,7 @@ def build_session(*, cascaded: bool = False) -> AgentSession:
             aec_warmup_duration=0.0,
             turn_handling={
                 "turn_detection": "stt",
-                "endpointing": {"min_delay": 0.6, "max_delay": 4.0},
+                "endpointing": {"min_delay": 0.4, "max_delay": 3.0},
                 "preemptive_generation": {"enabled": True},
             },
         )
