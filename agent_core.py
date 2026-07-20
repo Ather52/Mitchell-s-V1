@@ -533,6 +533,15 @@ def build_session(*, cascaded: bool = False) -> AgentSession:
                 "turn_detection": "stt",
                 "endpointing": {"min_delay": 0.4, "max_delay": 3.0},
                 "preemptive_generation": {"enabled": True},
+                # Backchannels ("جی", "ہمم") must not kill the agent's
+                # sentence: require real speech to interrupt, and resume
+                # quickly when the interruption turns out to be noise.
+                "interruption": {
+                    "min_duration": 0.8,
+                    "min_words": 2,
+                    "resume_false_interruption": True,
+                    "false_interruption_timeout": 1.0,
+                },
             },
         )
     return AgentSession(

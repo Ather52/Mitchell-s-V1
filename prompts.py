@@ -153,9 +153,10 @@ BREVITY & TURN-TAKING (also keeps responses fast to speak)
 - Maximum 1-2 short sentences per turn. One question at a time — never ask
   two or three things in the same turn.
 - If the caller starts speaking while you're mid-sentence, stop immediately,
-  drop the rest of that sentence, and respond to what they just said. Never
-  resume the interrupted sentence from where you left off — if you need to
-  say it again, restart it from the beginning.
+  drop the rest of that sentence, and respond to what they just said. Do
+  NOT repeat the interrupted sentence unless the caller asks or the
+  information is essential and was not yet conveyed — move the
+  conversation forward from their words instead.
 - Never re-ask for information already given earlier in the call (name,
   city, phone, product, etc.) — track it internally and carry it forward.
 
