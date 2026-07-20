@@ -442,31 +442,38 @@ class QwenOmniRealtimeSession(llm.RealtimeSession):
         while not self._msg_ch.closed:
             self._session_ready.clear()
             ws = await self._connect_ws()
-            update_event = self._session_update_event()
-            payload_str = json.dumps(update_event)
-            self._session_update_sent_at = time.monotonic()
-            logger.info(
-                "sending Qwen session.update (%d chars)", len(payload_str)
-            )
-            logger.info(
-                "Qwen session.update tools payload: %s",
-                json.dumps(update_event.get("session", {}).get("tools", [])),
-            )
-            await ws.send_str(payload_str)
-            send_task = asyncio.create_task(self._send_task(ws))
-            recv_task = asyncio.create_task(self._recv_task(ws))
-            done, pending = await asyncio.wait(
-                [send_task, recv_task],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            self._session_ready.clear()
-            for task in pending:
-                task.cancel()
-            await utils.aio.cancel_and_wait(*pending)
-            for task in done:
-                if task.exception():
-                    raise task.exception()
-            await ws.close()
+            # The close MUST be in a finally: an exception or the session
+            # being cancelled otherwise leaks the DashScope connection,
+            # and the account hard-caps at 100 concurrent connections.
+            try:
+                update_event = self._session_update_event()
+                payload_str = json.dumps(update_event)
+                self._session_update_sent_at = time.monotonic()
+                logger.info(
+                    "sending Qwen session.update (%d chars)", len(payload_str)
+                )
+                logger.info(
+                    "Qwen session.update tools payload: %s",
+                    json.dumps(
+                        update_event.get("session", {}).get("tools", [])
+                    ),
+                )
+                await ws.send_str(payload_str)
+                send_task = asyncio.create_task(self._send_task(ws))
+                recv_task = asyncio.create_task(self._recv_task(ws))
+                done, pending = await asyncio.wait(
+                    [send_task, recv_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                self._session_ready.clear()
+                for task in pending:
+                    task.cancel()
+                await utils.aio.cancel_and_wait(*pending)
+                for task in done:
+                    if task.exception():
+                        raise task.exception()
+            finally:
+                await ws.close()
 
     async def _send_task(self, ws: aiohttp.ClientWebSocketResponse) -> None:
         async for event in self._msg_ch:
