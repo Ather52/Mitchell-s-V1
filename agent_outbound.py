@@ -30,19 +30,13 @@ DYNAMIC_VAR_KEYS = (
 
 
 def _greeting_text(dynamic_vars: dict) -> str:
+    # Short opening only, like a real sales call — the prompt STEP 1 then
+    # confirms the name, introduces Ayesha, and asks for two minutes, one
+    # short beat at a time. Do not cram it all into the greeting.
     lang = (dynamic_vars.get("language_preference") or "Urdu").strip().lower()
-    owner = (dynamic_vars.get("owner_name") or "").strip()
     if lang == "english":
-        who = owner or "the shop owner"
-        return (
-            f"Assalam o Alaikum! This is Ayesha calling from Mitchell's "
-            f"Fruit Farms — may I speak with {who} please?"
-        )
-    who = owner or "دکان کے مالک"
-    return (
-        f"السلام علیکم! میں عائشہ ہوں، Mitchell's Fruit Farms سے بات کر "
-        f"رہی ہوں — کیا {who} سے بات ہو سکتی ہے؟"
-    )
+        return "Assalam o Alaikum!"
+    return "السلام علیکم!"
 
 
 def _dynamic_vars_from_job(ctx: JobContext) -> dict:
