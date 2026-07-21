@@ -220,12 +220,32 @@ def _finalize_log(log, now_ms: int) -> None:
 
 async def _observe_live_room(db, lk, room_name: str, now_ms: int) -> None:
     from livekit.api import ListParticipantsRequest
+    from livekit.api.twirp_client import ServerError, ServerErrorCode
 
-    parts = await lk.room.list_participants(
-        ListParticipantsRequest(room=room_name)
-    )
-    sip = _sip_participant(parts.participants)
     log = await _get_or_create_log(db, room_name)
+    if log.end_timestamp:
+        # Already finalized (by the webhook or an earlier tick); the room
+        # is just lingering in list_rooms. Nothing to observe.
+        return
+    try:
+        parts = await lk.room.list_participants(
+            ListParticipantsRequest(room=room_name)
+        )
+    except ServerError as exc:
+        if exc.code == ServerErrorCode.NOT_FOUND:
+            # list_rooms lags room deletion by departure_timeout, so the
+            # room can 404 here right after the call ends. Treat as hangup.
+            if log.start_timestamp and not log.end_timestamp:
+                _finalize_log(log, now_ms)
+                await _sync_outbound_row(db, log)
+                _logger.info(
+                    "poller: %s room gone, ended (%sms)",
+                    room_name,
+                    log.duration_ms,
+                )
+            return
+        raise
+    sip = _sip_participant(parts.participants)
     if sip is not None:
         attrs = sip.attributes or {}
         if not log.start_timestamp and sip.joined_at:
