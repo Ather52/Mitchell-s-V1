@@ -541,6 +541,8 @@ PRODUCT_NAME_FIXES = [
     ("جوبلی چاکلیٹس", "Jubilee Chocolates"),
     ("جوبلی چاکلیٹ", "Jubilee Chocolate"),
     ("جوبلی", "Jubilee"),
+    ("جیوبیلی", "Jubilee"),
+    ("جبلی", "Jubilee"),
     ("ہیپی ہارٹس", "Happy Hearts"),
     ("اسٹرابیری جیم", "Strawberry Jam"),
     ("سٹرابیری جیم", "Strawberry Jam"),
