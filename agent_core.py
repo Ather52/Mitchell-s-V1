@@ -163,10 +163,13 @@ def build_text_llm():
             "api_key": OPENAI_API_KEY,
             "base_url": OPENAI_BASE_URL,
         }
-        # GPT-5 reasoning models "think" before answering; on a live call
-        # that adds seconds per turn. Keep effort low unless overridden.
+        # reasoning_effort only exists on gpt-5 / o-series reasoning models;
+        # sending it to gpt-4.1* returns HTTP 400 and forces a retry, which
+        # is itself a source of turn latency.
         effort = _env("LLM_REASONING_EFFORT", "").strip()
-        if effort:
+        m = OPENAI_LLM_MODEL.lower()
+        is_reasoning = m.startswith(("gpt-5", "o1", "o3", "o4"))
+        if effort and is_reasoning:
             kwargs["reasoning_effort"] = effort
         return openai_plugin.LLM(**kwargs)
     logger.info(
@@ -715,6 +718,21 @@ async def run_agent(
             getattr(ev.item, "role", "?"),
             getattr(ev.item, "text_content", ""),
         )
+
+    @session.on("metrics_collected")
+    def _log_metrics(ev):
+        m = ev.metrics
+        t = getattr(m, "type", "")
+        if t == "eou_metrics":
+            logger.info(
+                "LATENCY eou: endpoint=%.2fs transcript=%.2fs",
+                m.end_of_utterance_delay,
+                m.transcription_delay,
+            )
+        elif t == "llm_metrics":
+            logger.info("LATENCY llm: ttft=%.2fs", m.ttft)
+        elif t == "tts_metrics":
+            logger.info("LATENCY tts: ttfb=%.2fs", m.ttfb)
 
     logger.info("[%s] starting voice assistant", log_label)
     await session.start(
