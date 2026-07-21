@@ -557,7 +557,12 @@ def build_session(*, cascaded: bool = False) -> AgentSession:
             aec_warmup_duration=0.0,
             turn_handling={
                 "turn_detection": "stt",
-                "endpointing": {"min_delay": 0.4, "max_delay": 3.0},
+                "endpointing": {
+                    "min_delay": float(
+                        _env("MITCHELLS_ENDPOINT_MIN_DELAY", "0.2")
+                    ),
+                    "max_delay": 3.0,
+                },
                 "preemptive_generation": {"enabled": True},
                 # Backchannels ("جی", "ہمم") must not kill the agent's
                 # sentence: require real speech to interrupt, and resume
