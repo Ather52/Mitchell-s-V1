@@ -123,8 +123,12 @@ def build_stt():
             language_hints_strict=(
                 _env("SONIOX_STT_HINTS_STRICT", "0") == "1"
             ),
-            max_endpoint_delay_ms=int(
-                _env("SONIOX_STT_ENDPOINT_DELAY_MS", "1500")
+            max_endpoint_delay_ms=max(
+                500,
+                min(
+                    3000,
+                    int(_env("SONIOX_STT_ENDPOINT_DELAY_MS", "1500")),
+                ),
             ),
             endpoint_sensitivity=float(
                 _env("SONIOX_STT_ENDPOINT_SENSITIVITY", "0.3")
