@@ -98,6 +98,13 @@ DASHSCOPE_HTTP_BASE_URL = _env(
     "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
 
+# LLM provider for the cascaded text pipeline. "openai" uses OpenAI (set
+# OPENAI_API_KEY + LLM_MODEL); anything else falls back to DashScope/Qwen.
+LLM_PROVIDER = _env("LLM_PROVIDER", "dashscope").strip().lower()
+OPENAI_API_KEY = _env("OPENAI_API_KEY", "")
+OPENAI_LLM_MODEL = _env("LLM_MODEL", "gpt-4.1")
+OPENAI_BASE_URL = _env("OPENAI_BASE_URL", "https://api.openai.com/v1")
+
 
 def build_stt():
     if not (USE_SONIOX_STT and SONIOX_API_KEY and soniox is not None):
@@ -146,6 +153,16 @@ def build_stt():
 def build_text_llm():
     from livekit.plugins import openai as openai_plugin
 
+    if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
+        logger.info(
+            "cascaded pipeline: Soniox STT -> OpenAI %s -> Soniox TTS",
+            OPENAI_LLM_MODEL,
+        )
+        return openai_plugin.LLM(
+            model=OPENAI_LLM_MODEL,
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_BASE_URL,
+        )
     logger.info(
         "cascaded pipeline: Soniox STT -> %s -> Soniox TTS", QWEN_TEXT_MODEL
     )
