@@ -158,11 +158,17 @@ def build_text_llm():
             "cascaded pipeline: Soniox STT -> OpenAI %s -> Soniox TTS",
             OPENAI_LLM_MODEL,
         )
-        return openai_plugin.LLM(
-            model=OPENAI_LLM_MODEL,
-            api_key=OPENAI_API_KEY,
-            base_url=OPENAI_BASE_URL,
-        )
+        kwargs = {
+            "model": OPENAI_LLM_MODEL,
+            "api_key": OPENAI_API_KEY,
+            "base_url": OPENAI_BASE_URL,
+        }
+        # GPT-5 reasoning models "think" before answering; on a live call
+        # that adds seconds per turn. Keep effort low unless overridden.
+        effort = _env("LLM_REASONING_EFFORT", "").strip()
+        if effort:
+            kwargs["reasoning_effort"] = effort
+        return openai_plugin.LLM(**kwargs)
     logger.info(
         "cascaded pipeline: Soniox STT -> %s -> Soniox TTS", QWEN_TEXT_MODEL
     )
